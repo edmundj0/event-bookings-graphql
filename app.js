@@ -16,6 +16,58 @@ const app = express()
 app.use(bodyParser.json()); //to parse incoming json bodies
 
 
+//model relations dynamically and very flexible, can drill indefinitely
+const user = userId => {
+    return User.findById(userId)
+    .then(user => {
+        return { ...user._doc, _id: user.id, createdEvents: events.bind(this, user._doc.createdEvents)}
+    })
+    .catch(err => {
+        throw err
+    })
+}
+
+const events = eventIds => {
+    return Event.find({ _id: {$in: eventIds}})
+    .then(events => {
+        return events.map(event => {
+            return {
+                ...event._doc,
+                _id: event.id,
+                creator: user.bind(this, event.creator)
+            }
+        })
+    })
+    .catch(err => {
+        throw err
+    })
+}
+
+// const user = async (userId) => {
+//     try {
+//         const user = await User.findById(userId).lean();
+//         return { ...user, createdEvents: user.createdEvents }
+//     } catch (err) {
+//         throw err
+//     }
+// }
+
+
+// const events = async (eventIds) => {
+//     try {
+//         const foundEvents = await Event.find({_id: {$in: eventIds}}).lean()
+//         const eventsWithCreators = await Promise.all(foundEvents.map(async (event) => {
+//             const creator = await user(event.creator);
+//             return { ...event, _id: event.id, creator}
+//         }))
+//         return eventsWithCreators
+//     } catch (err) {
+//         throw err
+//     }
+// }
+
+
+
 app.use('/graphql', graphqlHTTP({
     schema: buildSchema(`
 
@@ -25,12 +77,14 @@ app.use('/graphql', graphqlHTTP({
             description: String!
             price: Float!
             date: String!
+            creator: User!
         }
 
         type User {
             _id: ID!
             email: String!
             password: String
+            createdEvents: [Event!]
         }
 
         input EventInput {
@@ -62,12 +116,34 @@ app.use('/graphql', graphqlHTTP({
     `),
     //resolvers
     rootValue: {
-        events: async () => {
-            try {
-                return await Event.find().lean();
-            } catch (err) {
+        // events: async () => {
+        //     try {
+        //         // return await Event.find().populate('creator').lean(); //populates with relations
+        //         const events = await Event.find().lean();
+        //         const creatorPromises = events.map(event => user(event.creator));
+        //         const creators = await Promise.all(creatorPromises)
+        //         const eventsWithCreators = events.map((event, index) => {
+        //             return {...event, creator: creators[index]}
+        //         })
+        //         return eventsWithCreators
+        //     } catch (err) {
+        //         throw err
+        //     }
+        // },
+        events: () => {
+            return Event.find()
+            .then(events => {
+                return events.map(event => {
+                    return {
+                        ...event._doc,
+                        _id: event.id,
+                        creator: user.bind(this, event._doc.creator)
+                    }
+                })
+            })
+            .catch(err => {
                 throw err
-            }
+            })
         },
         createEvent: (args) => {
             const event = new Event({
@@ -81,7 +157,7 @@ app.use('/graphql', graphqlHTTP({
             return event
                 .save() //save to db
                 .then(result => {
-                    createdEvent = { ...result._doc }
+                    createdEvent = { ...result._doc, _id: result._doc._id.toString(), creator: user.bind(this, result._doc.creator ) }
                     return User.findById('63eab061aad97e6cb740ba94')
                 })
                 .then(user => {

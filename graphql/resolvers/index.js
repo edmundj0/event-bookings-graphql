@@ -22,6 +22,7 @@ const events = eventIds => {
             return {
                 ...event._doc,
                 _id: event.id,
+                date: new Date(event._doc.date).toISOString(),
                 creator: user.bind(this, event.creator)
             }
         })
@@ -63,6 +64,7 @@ module.exports = {
                 return {
                     ...event._doc,
                     _id: event.id,
+                    date: new Date(event._doc.date).toISOString(),
                     creator: user.bind(this, event._doc.creator)
                 }
             })
@@ -83,7 +85,7 @@ module.exports = {
         return event
             .save() //save to db
             .then(result => {
-                createdEvent = { ...result._doc, _id: result._doc._id.toString(), creator: user.bind(this, result._doc.creator ) }
+                createdEvent = { ...result._doc, _id: result._doc._id.toString(), creator: user.bind(this, result._doc.creator), date: new Date(event._doc.date).toISOString()}
                 return User.findById('63eab061aad97e6cb740ba94')
             })
             .then(user => {

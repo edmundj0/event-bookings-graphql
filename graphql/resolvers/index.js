@@ -2,6 +2,27 @@ const bcrypt = require('bcryptjs')
 
 const Event = require("../../models/event")
 const User = require('../../models/user')
+const Booking = require('../../models/booking')
+
+const transformEvent = event => {
+    return {
+        ...event._doc,
+        _id: event.id,
+        date: new Date(event._doc.date).toISOString(),
+        creator: user.bind(this, event.creator)
+    }
+}
+
+const transformBooking = booking => {
+    return {
+        ...booking._doc,
+        _id: booking.id,
+        user: user.bind(this, booking._doc.user),
+        event: singleEvent.bind(this, booking._doc.event),
+        createdAt: new Date(booking._doc.createdAt).toISOString(),
+        updatedAt: new Date(booking._doc.updatedAt).toISOString()
+    }
+}
 
 
 //model relations dynamically and very flexible, can drill indefinitely
@@ -19,16 +40,22 @@ const events = eventIds => {
     return Event.find({ _id: {$in: eventIds}})
     .then(events => {
         return events.map(event => {
-            return {
-                ...event._doc,
-                _id: event.id,
-                creator: user.bind(this, event.creator)
-            }
+            return transformEvent(event)
         })
     })
     .catch(err => {
         throw err
     })
+}
+
+const singleEvent = async (eventId) => {
+    try {
+        const event = await Event.findById(eventId)
+        return transformEvent(event)
+
+    } catch (err) {
+        throw err
+    }
 }
 
 // const user = async (userId) => {
@@ -60,16 +87,23 @@ module.exports = {
         return Event.find()
         .then(events => {
             return events.map(event => {
-                return {
-                    ...event._doc,
-                    _id: event.id,
-                    creator: user.bind(this, event._doc.creator)
-                }
+                return transformEvent(event)
             })
         })
         .catch(err => {
             throw err
         })
+    },
+    bookings: async () => {
+        try {
+            const bookings = await Booking.find();
+            return bookings.map(booking => {
+                // console.log(booking, 'BOOKING')
+                return transformBooking(booking)
+            })
+        }catch (err){
+            throw err
+        }
     },
     createEvent: (args) => {
         const event = new Event({
@@ -83,7 +117,7 @@ module.exports = {
         return event
             .save() //save to db
             .then(result => {
-                createdEvent = { ...result._doc, _id: result._doc._id.toString(), creator: user.bind(this, result._doc.creator ) }
+                createdEvent = transformEvent(result)
                 return User.findById('63eab061aad97e6cb740ba94')
             })
             .then(user => {
@@ -122,6 +156,25 @@ module.exports = {
                         throw err
                     })
             })
+    },
+    bookEvent: async args => {
+        const fetchedEvent = await Event.findOne({_id: args.eventId})
+        const booking = new Booking({
+            user: '63eab061aad97e6cb740ba94',
+            event: fetchedEvent
+        })
+        const result = await booking.save();
+        return transformBooking(result)
+    },
+    cancelBooking: async args => {
+        try {
+            const booking = await Booking.findById(args.bookingId).populate('event')
+            const event = transformEvent(booking.event)
+            await Booking.deleteOne({_id: args.bookingId})
+            return event
+        } catch (err) {
+            throw err
+        }
     }
 }
 

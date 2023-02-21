@@ -13,6 +13,17 @@ const transformEvent = event => {
     }
 }
 
+const transformBooking = booking => {
+    return {
+        ...booking._doc,
+        _id: booking.id,
+        user: user.bind(this, booking._doc.user),
+        event: singleEvent.bind(this, booking._doc.event),
+        createdAt: new Date(booking._doc.createdAt).toISOString(),
+        updatedAt: new Date(booking._doc.updatedAt).toISOString()
+    }
+}
+
 
 //model relations dynamically and very flexible, can drill indefinitely
 const user = userId => {
@@ -88,13 +99,7 @@ module.exports = {
             const bookings = await Booking.find();
             return bookings.map(booking => {
                 // console.log(booking, 'BOOKING')
-                return {...booking._doc,
-                    _id: booking.id,
-                    user: user.bind(this, booking._doc.user),
-                    event: singleEvent.bind(this, booking._doc.event),
-                    createdAt: new Date(booking._doc.createdAt).toISOString(),
-                    updatedAt: new Date(booking._doc.updatedAt).toISOString()
-                }
+                return transformBooking(booking)
             })
         }catch (err){
             throw err
@@ -159,14 +164,7 @@ module.exports = {
             event: fetchedEvent
         })
         const result = await booking.save();
-        return {
-            ...result._doc,
-            _id: result.id,
-            user: user.bind(this, booking._doc.user),
-            event: singleEvent.bind(this, booking._doc.event),
-            createdAt: new Date(result._doc.createdAt).toISOString(),
-            updatedAt: new Date(result._doc.updatedAt).toISOString()
-        }
+        return transformBooking(result)
     },
     cancelBooking: async args => {
         try {

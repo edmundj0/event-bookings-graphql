@@ -1,63 +1,15 @@
-const bcrypt = require('bcryptjs')
+const authResolver = require('./auth')
+const eventsResolver = require('./events')
+const bookingResolver = require('./booking')
 
-const Event = require("../../models/event")
-const User = require('../../models/user')
-const Booking = require('../../models/booking')
-const { dateToString } = require('../../helpers/date')
-
-const transformEvent = event => {
-    return {
-        ...event._doc,
-        _id: event.id,
-        date: dateToString(event._doc.date),
-        creator: user.bind(this, event.creator)
-    }
+const rootResolver = {
+    ...authResolver,
+    ...eventsResolver,
+    ...bookingResolver
 }
 
-const transformBooking = booking => {
-    return {
-        ...booking._doc,
-        _id: booking.id,
-        user: user.bind(this, booking._doc.user),
-        event: singleEvent.bind(this, booking._doc.event),
-        createdAt: dateToString(booking._doc.createdAt),
-        updatedAt: dateToString(booking._doc.updatedAt)
-    }
-}
+module.exports = rootResolver;
 
-
-//model relations dynamically and very flexible, can drill indefinitely
-const user = userId => {
-    return User.findById(userId)
-    .then(user => {
-        return { ...user._doc, _id: user.id, createdEvents: events.bind(this, user._doc.createdEvents), password: null}
-    })
-    .catch(err => {
-        throw err
-    })
-}
-
-const events = eventIds => {
-    return Event.find({ _id: {$in: eventIds}})
-    .then(events => {
-        return events.map(event => {
-            return transformEvent(event)
-        })
-    })
-    .catch(err => {
-        throw err
-    })
-}
-
-const singleEvent = async (eventId) => {
-    try {
-        const event = await Event.findById(eventId)
-        return transformEvent(event)
-
-    } catch (err) {
-        throw err
-    }
-}
 
 // const user = async (userId) => {
 //     try {
@@ -83,101 +35,7 @@ const singleEvent = async (eventId) => {
 // }
 
 
-module.exports = {
-    events: () => {
-        return Event.find()
-        .then(events => {
-            return events.map(event => {
-                return transformEvent(event)
-            })
-        })
-        .catch(err => {
-            throw err
-        })
-    },
-    bookings: async () => {
-        try {
-            const bookings = await Booking.find();
-            return bookings.map(booking => {
-                // console.log(booking, 'BOOKING')
-                return transformBooking(booking)
-            })
-        }catch (err){
-            throw err
-        }
-    },
-    createEvent: (args) => {
-        const event = new Event({
-            title: args.eventInput.title,
-            description: args.eventInput.description,
-            price: +args.eventInput.price,
-            date: new Date(args.eventInput.date),
-            creator: '63eab061aad97e6cb740ba94'
-        });
-        let createdEvent;
-        return event
-            .save() //save to db
-            .then(result => {
-                createdEvent = transformEvent(result)
-                return User.findById('63eab061aad97e6cb740ba94')
-            })
-            .then(user => {
-                if (!user){
-                    throw new Error('User not found') //rarely will hit this
-                }
-                user.createdEvents.push(event);
-                return user.save()
-            })
-            .then(result => {
-                return createdEvent;
-            })
-            .catch(err => {
-                console.log(err)
-                throw err
-            })
-    },
-    createUser: (args) => {
-        return User.findOne({ email: args.userInput.email })
-            .then(user => {
-                if (user) {
-                    throw new Error('Email already exists.')
-                }
-                return bcrypt.hash(args.userInput.password, 12)  //12 rounds of salting
-                    .then(hashedPassword => {
-                        const user = new User({
-                            email: args.userInput.email,
-                            password: hashedPassword
-                        })
-                        return user.save();
-                    })
-                    .then(result => {
-                        return { ...result._doc, password: null }
-                    })
-                    .catch(err => {
-                        throw err
-                    })
-            })
-    },
-    bookEvent: async args => {
-        const fetchedEvent = await Event.findOne({_id: args.eventId})
-        const booking = new Booking({
-            user: '63eab061aad97e6cb740ba94',
-            event: fetchedEvent
-        })
-        const result = await booking.save();
-        return transformBooking(result)
-    },
-    cancelBooking: async args => {
-        try {
-            const booking = await Booking.findById(args.bookingId).populate('event')
-            const event = transformEvent(booking.event)
-            await Booking.deleteOne({_id: args.bookingId})
-            return event
-        } catch (err) {
-            throw err
-        }
-    }
-}
+
 
 
 

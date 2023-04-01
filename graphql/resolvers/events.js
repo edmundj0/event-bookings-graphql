@@ -16,20 +16,23 @@ module.exports = {
             throw err
         })
     },
-    createEvent: (args) => {
+    createEvent: async (args, req) => {
+        if(!req.isAuth){
+            throw new Error('Unauthenticated')
+        }
         const event = new Event({
             title: args.eventInput.title,
             description: args.eventInput.description,
             price: +args.eventInput.price,
             date: new Date(args.eventInput.date),
-            creator: '63eab061aad97e6cb740ba94'
+            creator: req.userId
         });
         let createdEvent;
         return event
             .save() //save to db
             .then(result => {
                 createdEvent = transformEvent(result)
-                return User.findById('63eab061aad97e6cb740ba94')
+                return User.findById(req.userId)
             })
             .then(user => {
                 if (!user){

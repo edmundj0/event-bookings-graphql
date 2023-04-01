@@ -4,6 +4,7 @@ const { graphqlHTTP } = require('express-graphql'); //middleware to parse and ha
 const mongoose = require('mongoose');
 const graphQlSchema = require('./graphql/schema/index')
 const graphQlResolvers = require('./graphql/resolvers/index')
+const isAuth = require('./middleware/is-auth')
 
 
 const dotenv = require('dotenv'); //import env variables
@@ -14,7 +15,7 @@ const app = express()
 app.use(bodyParser.json()); //to parse incoming json bodies
 
 
-
+app.use(isAuth) //will never throw an error, only checks if is authorized
 
 
 

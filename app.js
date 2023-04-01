@@ -28,7 +28,7 @@ app.use('/graphql', graphqlHTTP({
 //connect to db
 mongoose.connect(`mongodb+srv://can-read-and-write:${process.env.MONGO_PASSWORD}@event-booking.r5bjftn.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`)
     .then(
-        app.listen(3000)
+        app.listen(5000)
     ).catch(err => {
         console.log(err);
     })
